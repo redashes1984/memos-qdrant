@@ -171,7 +171,7 @@ llm:
 | 硬件 | 规格 | 用途 |
 |------|------|------|
 | RTX PRO 6000 Workstation | 96GB 显存 | vLLM Qwen3.6-27B-FP8 主推理 + Embedding + Reranker |
-| 双 RTX 2080 Ti Nvlink（**魔改**，2080 Ti 原厂无 Nvlink） | 44GB 显存 | 备用推理 / ComfyUI |
+| 双 RTX 2080 Ti Nvlink（**魔改**，显存 11G→22G 扩容） | 44GB 显存 | 备用推理 / ComfyUI |
 | RTX 3080 **魔改** 20G（原厂 10GB，显存替换） | 20GB 显存 | NAS 内置，ComfyUI 绘图 |
 | Qdrant 专用容器 | 10.10.4.79, 4 核 8GB | 向量记忆存储 |
 | Embedding/Reranker 容器 | 10.10.4.81, 共享 RTX PRO 6000 | 1024 维嵌入 + 交叉重排序 |
