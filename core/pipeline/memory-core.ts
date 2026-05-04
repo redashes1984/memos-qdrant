@@ -66,6 +66,7 @@ import type { Logger } from "../logger/types.js";
 import { openDb } from "../storage/connection.js";
 import { runMigrations } from "../storage/migrator.js";
 import { makeRepos } from "../storage/repos/index.js";
+import { QdrantStore } from "../storage/qdrant.js";
 import { createEmbedder } from "../embedding/embedder.js";
 import { createLlmClient } from "../llm/client.js";
 
@@ -140,7 +141,23 @@ export async function bootstrapMemoryCoreFull(
         (err instanceof Error ? err.message : String(err)),
     );
   }
-  const repos = makeRepos(db);
+  // Build QdrantStore if configured — used by repo upsert sync and search
+  let qdrantStore: import("../storage/qdrant.js").QdrantStore | null = null;
+  const storageCfg = config.storage;
+  if (storageCfg?.vectorBackend === "qdrant" && storageCfg?.qdrant?.url) {
+    try {
+      qdrantStore = new QdrantStore(storageCfg.qdrant, (config.embedding as { dimensions?: number })?.dimensions ?? 1024);
+      log.info("qdrant.initialized", { url: storageCfg.qdrant.url });
+    } catch (err) {
+      log.warn("qdrant.unavailable", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  const repos = makeRepos(db, {
+    qdrant: qdrantStore,
+    vectorBackend: storageCfg?.vectorBackend ?? "sqlite",
+  });
 
   // 2. Providers (embedding + LLM) — nullable so we can run without them.
   // The LLM facade we build falls through to "local_only" when no remote

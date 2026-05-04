@@ -66,6 +66,27 @@ export function makePoliciesRepo(db: StorageDb, opts?: TracesRepoOptions) {
 
     upsert(row: PolicyRow): void {
       upsert.run(rowToParams(row));
+
+      // Fire-and-forget: sync vector to Qdrant (never block MemOS flow)
+      if (qdrant && row.vec) {
+        const vec = row.vec;
+        void (async () => {
+          try {
+            await qdrant.upsertSync("policies", {
+              id: row.id,
+              vector: Array.from(vec),
+              payload: {
+                title: row.title,
+                status: row.status,
+                support: row.support,
+                gain: row.gain,
+              },
+            });
+          } catch {
+            // fire-and-forget
+          }
+        })();
+      }
     },
 
     updateStats(

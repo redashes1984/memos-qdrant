@@ -32,7 +32,8 @@ export interface RerankerConfig {
 
 export interface RerankResult {
   index: number;
-  relevance_score: number;
+  relevance_score?: number;
+  score?: number;
 }
 
 export interface RerankResponse {
@@ -91,7 +92,7 @@ export class RerankerClient {
             model: this.model,
             query,
             documents,
-            top_n: topN,
+            top_k: topN,
           }),
           signal: ctrl.signal,
         });
@@ -119,7 +120,7 @@ export class RerankerClient {
 
         return results.map((r) => ({
           index: indices[r.index],
-          score: r.relevance_score,
+          score: r.score ?? r.relevance_score ?? 0,
         }));
       } catch (err) {
         clearTimeout(tid);

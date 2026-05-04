@@ -33,6 +33,7 @@ import type { RetrievalEventBus } from "./events.js";
 import { toPacket, renderSnippetForDebug } from "./injector.js";
 import { llmFilterCandidates } from "./llm-filter.js";
 import { rank } from "./ranker.js";
+import { RerankerClient } from "./reranker-client.js";
 import { runTier1 } from "./tier1-skill.js";
 import { runTier2 } from "./tier2-trace.js";
 import { runTier3 } from "./tier3-world.js";
@@ -277,6 +278,31 @@ async function runAll(
     });
     const fuseLatencyMs = Date.now() - fuseStart;
 
+    // ─── Cross-encoder reranker ──────────────────────────────────────────
+    // After mechanical ranking, use a cross-encoder reranker to re-score
+    // candidates with query-document pairs for higher precision.
+    // Fails open — on any error we keep the mechanical ranking.
+    let rerankedCandidates = ranked.ranked;
+    let rerankerLatencyMs = 0;
+    if (deps.reranker && rerankedCandidates.length > 1) {
+      const rerankerStart = Date.now();
+      const queryText =
+        (ctx as { userText?: string }).userText ?? compiled.text ?? "";
+      try {
+        rerankedCandidates = await applyReranker(
+          deps.reranker,
+          queryText,
+          rerankedCandidates,
+        );
+      } catch (err) {
+        log.warn("reranker.failed", {
+          err: err instanceof Error ? err.message : String(err),
+        });
+        // falls through with mechanical ranking
+      }
+      rerankerLatencyMs = Date.now() - rerankerStart;
+    }
+
     // ─── LLM relevance filter ──────────────────────────────────────────
     // Mechanical retrieval produces high-recall but low-precision
     // candidates. A small LLM round-trip (see `llm-filter.ts`) prunes
@@ -286,7 +312,7 @@ async function runAll(
     const queryText =
       (ctx as { userText?: string }).userText ?? compiled.text ?? "";
     const filtered = await llmFilterCandidates(
-      { query: queryText, ranked: ranked.ranked },
+      { query: queryText, ranked: rerankedCandidates },
       {
         llm: deps.llm ?? null,
         log,
@@ -476,4 +502,69 @@ export class Retriever {
   repair(ctx: RepairRetrieveCtx, opts?: RetrieveOptions) {
     return repairRetrieve(this.deps, ctx, opts);
   }
+}
+
+/**
+ * Extract display text from a ranked candidate for the reranker.
+ * The reranker needs the "document" text that best represents each candidate.
+ */
+function candidateText(c: import("./ranker.js").RankedCandidate): string {
+  const cand = c.candidate;
+  switch (cand.refKind) {
+    case "trace":
+      return (cand as TraceCandidate).userText;
+    case "skill":
+      return (cand as SkillCandidate).invocationGuide;
+    case "world-model":
+      return (cand as WorldModelCandidate).title + " " + (cand as WorldModelCandidate).body;
+    case "episode":
+      // Episodes may have session context — use session text if available
+      return String((cand as EpisodeCandidate).summary ?? "");
+    default:
+      return "";
+  }
+}
+
+/**
+ * Apply cross-encoder reranker to re-score ranked candidates.
+ *
+ * The reranker uses query-document pairs for precise scoring, which is
+ * more accurate than vector cosine similarity alone. Results are blended
+ * with the original mechanical relevance using a 70/30 ratio to preserve
+ * tier diversity and multi-channel signals.
+ *
+ * Fails open — returns the original ranked array unchanged on error.
+ */
+async function applyReranker(
+  reranker: RerankerClient,
+  query: string,
+  ranked: import("./ranker.js").RankedCandidate[],
+): Promise<import("./ranker.js").RankedCandidate[]> {
+  if (query.length === 0 || ranked.length === 0) return ranked;
+
+  const documents = ranked.map((c) => candidateText(c));
+  const indices = ranked.map((_, i) => i);
+
+  const rerankResults = await reranker.rerank(query, documents, indices);
+
+  // Build a map from original index → reranker score
+  const rerankScore: Map<number, number> = new Map();
+  for (const r of rerankResults) {
+    rerankScore.set(r.index, r.score);
+  }
+
+  // Blend reranker score into relevance: 70% original, 30% reranker
+  // This preserves tier diversity and multi-channel signals while
+  // allowing the reranker to correct ordering within the same band.
+  const BLEND = 0.3;
+  const blended = ranked.map((c, i) => {
+    const rs = rerankScore.get(i) ?? 0;
+    return {
+      ...c,
+      relevance: c.relevance * (1 - BLEND) + rs * BLEND,
+    };
+  });
+
+  // Stable sort by blended relevance descending
+  return [...blended].sort((a, b) => b.relevance - a.relevance);
 }

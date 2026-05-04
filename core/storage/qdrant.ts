@@ -181,6 +181,32 @@ export class QdrantStore {
     log.debug("upsert", { collection: name, count: points.length });
   }
 
+  /**
+   * Ensure the collection exists, then upsert a single point.
+   * Convenience method for write-side sync (fire-and-forget from repos).
+   */
+  async upsertSync(
+    suffix: string,
+    point: QdrantPoint,
+  ): Promise<void> {
+    const name = this.collectionName(suffix);
+    const url = `${this.baseUrl}/collections/${name}`;
+
+    // Lazy-create collection if missing
+    const resp = await qdrantFetch(url, "GET", this.apiKey, null, this.timeoutMs, 0);
+    if (resp.status !== 200) {
+      log.info("collection.create (lazy)", { collection: name, dims: this.dims });
+      await qdrantFetch(url, "PUT", this.apiKey, {
+        vectors: { size: this.dims, distance: "Cosine" },
+        hnsw_config: { m: 16, ef_construct: 100 },
+        optimizers_config: { default_segment_number: 0 },
+      }, this.timeoutMs, this.maxRetries);
+    }
+
+    // Upsert the point
+    await this.upsert(suffix, [point]);
+  }
+
   /** Delete points by ID from a collection. */
   async delete(
     suffix: string,

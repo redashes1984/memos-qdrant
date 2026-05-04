@@ -93,7 +93,7 @@ export async function runTier2(deps: Tier2Deps, input: Tier2Input): Promise<Tier
 
     // ─── Vector channels ──────────────────────────────────────────────
     if (input.queryVec && input.queryVec.length > 0) {
-      const summaryHits = repos.traces.searchByVector(input.queryVec, vecPoolSize, {
+      const summaryHits = await repos.traces.searchByVector(input.queryVec, vecPoolSize, {
         kind: "summary",
         anyOfTags: tagsForStorage,
         where: valueWhere,
@@ -101,7 +101,7 @@ export async function runTier2(deps: Tier2Deps, input: Tier2Input): Promise<Tier
       });
       mergeChannelHits(blended, summaryHits, "vec_summary", input.queryVec);
 
-      const actionHits = repos.traces.searchByVector(input.queryVec, vecPoolSize, {
+      const actionHits = await repos.traces.searchByVector(input.queryVec, vecPoolSize, {
         kind: "action",
         anyOfTags: tagsForStorage,
         where: valueWhere,
@@ -115,7 +115,7 @@ export async function runTier2(deps: Tier2Deps, input: Tier2Input): Promise<Tier
       // traces.
       if (blended.size === 0 && tagsForStorage && config.tagFilter === "auto") {
         log.debug("tag_filter_relaxed", { tags: tagsForStorage });
-        const retry = repos.traces.searchByVector(input.queryVec, vecPoolSize, {
+        const retry = await repos.traces.searchByVector(input.queryVec, vecPoolSize, {
           kind: "summary",
           where: valueWhere,
           hardCap: vecPoolSize * 4,

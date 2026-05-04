@@ -27,10 +27,10 @@ export class OpenAiEmbeddingProvider implements EmbeddingProvider {
 
   async embed(texts: string[], _role: EmbedRole, ctx: ProviderCallCtx): Promise<number[][]> {
     const { config, log, signal } = ctx;
-    if (!config.apiKey) {
+    if (!config.apiKey && !config.endpoint) {
       throw new MemosError(
         ERROR_CODES.EMBEDDING_UNAVAILABLE,
-        "openai_compatible provider requires config.embedding.apiKey",
+        "openai_compatible provider requires config.embedding.apiKey (or set a custom endpoint)",
         { provider: this.name },
       );
     }
@@ -40,13 +40,12 @@ export class OpenAiEmbeddingProvider implements EmbeddingProvider {
         : "https://api.openai.com/v1/embeddings",
     );
     const model = config.model && config.model.length > 0 ? config.model : "text-embedding-3-small";
+    const headers: Record<string, string> = { ...config.headers };
+    if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
     const resp = await httpPostJson<OpenAiResp>({
       url,
       body: { input: texts, model },
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        ...config.headers,
-      },
+      headers,
       timeoutMs: config.timeoutMs,
       maxRetries: config.maxRetries,
       signal,

@@ -91,6 +91,7 @@ import type {
   RetrievalDeps,
   RetrievalEventBus,
 } from "../retrieval/index.js";
+import { RerankerClient } from "../retrieval/reranker-client.js";
 
 import type {
   PipelineAlgorithmConfig,
@@ -339,6 +340,7 @@ export function buildRetrievalDeps(
   algorithm: PipelineAlgorithmConfig,
 ): RetrievalDeps {
   const embedder = deps.embedder;
+  const rerankerConfig = deps.config.reranker;
   return {
     repos: wrapRetrievalRepos(deps.repos),
     embedder: embedder
@@ -355,6 +357,9 @@ export function buildRetrievalDeps(
     config: algorithm.retrieval,
     now: deps.now ?? Date.now,
     llm: deps.llm,
+    reranker: rerankerConfig?.enabled
+      ? new RerankerClient(rerankerConfig)
+      : null,
   };
 }
 

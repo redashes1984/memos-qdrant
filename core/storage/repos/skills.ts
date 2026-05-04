@@ -73,6 +73,27 @@ export function makeSkillsRepo(db: StorageDb, opts?: TracesRepoOptions) {
 
     upsert(row: SkillRow): void {
       upsert.run(rowToParams(row));
+
+      // Fire-and-forget: sync vector to Qdrant (never block MemOS flow)
+      if (qdrant && row.vec) {
+        const vec = row.vec;
+        void (async () => {
+          try {
+            await qdrant.upsertSync("skills", {
+              id: row.id,
+              vector: Array.from(vec),
+              payload: {
+                name: row.name,
+                status: row.status,
+                eta: row.eta,
+                gain: row.gain,
+              },
+            });
+          } catch {
+            // fire-and-forget
+          }
+        })();
+      }
     },
 
     setStatus(id: SkillId, status: SkillRow["status"], updatedAt: number): void {

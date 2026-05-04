@@ -15,7 +15,9 @@ viewer:
   port: 18799
 
 embedding:
-  provider: local         # local | openai_compatible | gemini | cohere | voyage | mistral
+  provider: openai_compatible   # local | openai_compatible | gemini | cohere | voyage | mistral
+  endpoint: http://10.10.4.81:8003   # Embedding service endpoint
+  dimensions: 1024                 # Qwen3-Embedding-0.6B output dimension
   apiKey: ""
 
 llm:
@@ -23,6 +25,23 @@ llm:
   provider: openai_compatible
   apiKey: ""              # REQUIRED — fill in before running
   model: ""               # blank = provider default (e.g. gpt-4o-mini for openai_compatible)
+
+storage:
+  vectorBackend: qdrant     # sqlite | qdrant
+  qdrant:
+    url: http://10.10.4.79:6333
+    apiKey: "fe31c60ab511a0f87ea6309d8523b3182a11132492bfc2fda0dfbe6e7fbda6f6"
+    collectionPrefix: memos
+    timeoutMs: 10000
+    maxRetries: 3
+
+reranker:
+  enabled: true
+  endpoint: http://10.10.4.81:8004   # Reranker service endpoint
+  model: reranker
+  topN: 10
+  timeoutMs: 30000
+  maxRetries: 3
 
 hub:
   enabled: false

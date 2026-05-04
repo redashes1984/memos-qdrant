@@ -512,6 +512,12 @@ export interface RetrievalDeps {
    * it.
    */
   llm?: import("../llm/index.js").LlmClient | null;
+  /**
+   * Optional cross-encoder reranker. Applied after mechanical ranking
+   * (`rank()`) and before LLM filtering. Re-scores top-N candidates using
+   * query-document pairs for higher precision. Fails open on error.
+   */
+  reranker?: import("./reranker-client.js").RerankerClient | null;
 }
 
 // ─── Results ─────────────────────────────────────────────────────────────────

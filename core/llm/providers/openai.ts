@@ -50,10 +50,10 @@ export class OpenAiLlmProvider implements LlmProvider {
     ctx: LlmProviderCtx,
   ): Promise<ProviderCompletion> {
     const { config, log, signal } = ctx;
-    if (!config.apiKey) {
+    if (!config.apiKey && !config.endpoint) {
       throw new MemosError(
         ERROR_CODES.LLM_UNAVAILABLE,
-        "openai_compatible provider requires config.llm.apiKey",
+        "openai_compatible provider requires config.llm.apiKey (or set a custom endpoint)",
         { provider: this.name },
       );
     }
@@ -73,13 +73,13 @@ export class OpenAiLlmProvider implements LlmProvider {
     if (opts.jsonMode) body.response_format = { type: "json_object" };
     if (opts.stop && opts.stop.length > 0) body.stop = opts.stop;
 
+    const headers: Record<string, string> = { ...config.headers };
+    if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
+
     const { json, durationMs } = await httpPostJson<OaResp>({
       url,
       body,
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        ...config.headers,
-      },
+      headers,
       timeoutMs: config.timeoutMs,
       maxRetries: config.maxRetries,
       signal,
@@ -109,10 +109,10 @@ export class OpenAiLlmProvider implements LlmProvider {
     ctx: LlmProviderCtx,
   ): AsyncGenerator<LlmStreamChunk> {
     const { config, log, signal } = ctx;
-    if (!config.apiKey) {
+    if (!config.apiKey && !config.endpoint) {
       throw new MemosError(
         ERROR_CODES.LLM_UNAVAILABLE,
-        "openai_compatible provider requires config.llm.apiKey",
+        "openai_compatible provider requires config.llm.apiKey (or set a custom endpoint)",
         { provider: this.name },
       );
     }
@@ -133,13 +133,13 @@ export class OpenAiLlmProvider implements LlmProvider {
     if (opts.jsonMode) body.response_format = { type: "json_object" };
     if (opts.stop && opts.stop.length > 0) body.stop = opts.stop;
 
+    const headers: Record<string, string> = { ...config.headers };
+    if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
+
     const resp = await httpPostStream({
       url,
       body,
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        ...config.headers,
-      },
+      headers,
       timeoutMs: config.timeoutMs,
       signal,
       provider: this.name,
