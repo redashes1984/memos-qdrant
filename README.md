@@ -116,27 +116,53 @@ llm:
 
 ### Level 2：完全体（我们的实验环境，火力全开）
 
-**适合人群**：有中高端 GPU（RTX 3080 / 4080 / 4090 或服务器 GPU），追求极致记忆效果的用户。
+**适合人群**：有 24GB 及以上显存的 GPU，或愿意组建多卡/分布式环境的用户。
 
 | 功能 | 配置 | 最低硬件要求 | 相比 Level 1 提升 |
 |------|------|-------------|------------------|
 | Embedding | Qwen3-Embedding-0.6B (1024 维) | **4GB 显存**（独立进程） | 1024 维语义表示，比 384/768 维精度更高 |
-| LLM | Qwen3.6-27B-FP8 | **16GB 显存**（独立进程，FP8 量化） | 27B 参数级意图识别与摘要能力 |
+| LLM | Qwen3.6-27B-FP8 | **24GB 显存**（独立进程，FP8 权重 ~27GB + KV Cache） | 27B 参数级意图识别与摘要能力 |
 | 向量存储 | **Qdrant HNSW** | **1 核 2 GB RAM**（独立容器/VM） | 百万级向量毫秒检索，支持 payload 过滤 |
 | Reranker | Qwen3-Reranker-0.6B | **2GB 显存**（可与 Embedding 共享 GPU） | 二次精排，召回精度大幅提升 |
 
-**最低硬件方案**（单 GPU 整合）：
+> **⚠️ 注意**：Qwen3.6-27B-FP8 模型权重约 27GB（FP8 = 1 byte/参数），加上 vLLM 的 KV Cache
+> 和 CUDA 系统预留，**单卡最低需要 RTX 4090 24GB**。RTX 3080 (10GB)、RTX 4080 (16GB) 等
+> 16GB 以下显存的 GPU **无法加载该模型**。如果你的 GPU 显存不足 24GB，请参考下方的
+> Level 1.5 折中方案，或改用 14B 级别模型。
 
-- GPU：RTX 3080 10GB（勉强）/ RTX 4080 16GB（推荐）/ RTX 4090 24GB（充裕）
+**最低硬件方案**（单 GPU 整合，所有服务挤一张卡）：
+
+- GPU：RTX 4090 24GB（最低，仅够跑 LLM；Embedding/Reranker 需共享会 OOM）
 - RAM：16 GB
 - 磁盘：20 GB（模型缓存 + Qdrant 索引）
-- 注意：Embedding + Reranker + LLM 需要共享 GPU 显存，总占用约 22-24 GB
+- 注意：24GB 显存仅够装下 27B FP8 模型本身，Embedding/Reranker 必须放在另一张卡或 CPU 上
 
 **推荐硬件方案**（多 GPU 或分布式）：
 
-- GPU 1：RTX 3080 / 4080 — 跑 LLM（vLLM 27B FP8）
-- GPU 2：RTX 3060 12GB — 跑 Embedding + Reranker
+- GPU 1：RTX 4090 24GB（或同级别以上）— 跑 LLM（vLLM 27B FP8）
+- GPU 2：RTX 3060 12GB（或以上）— 跑 Embedding + Reranker
 - 独立容器/VM：跑 Qdrant（1 核 2GB 即可）
+
+**Level 1.5 折中方案**（16GB 显存用户）：
+
+如果你没有 24GB 显存但想用本地大模型，可以降级 LLM：
+
+| 替代模型 | 量化格式 | 权重显存 | 最低显存 | 推荐 GPU |
+|---------|---------|---------|---------|---------|
+| Qwen3.5-14B-FP8 | FP8 | ~14 GB | **16 GB** | RTX 4080 / 3080 20G |
+| Qwen3.5-14B-INT4 | INT4 (AWQ/GPTQ) | ~7.5 GB | **12 GB** | RTX 3060 12GB / 4070 |
+| Qwen3.6-27B-INT4 | INT4 (AWQ/GPTQ) | ~14 GB | **16 GB** | RTX 4080 / 3080 20G |
+
+降级配置示例：
+
+```yaml
+# Level 1.5 折中方案 — RTX 4080 16GB + Qwen3.5-14B-FP8
+llm:
+  provider: openai_compatible
+  endpoint: http://127.0.0.1:8000/v1/chat/completions
+  model: Qwen3.5-14B-FP8
+  apiKey: ""
+```
 
 **我们的实验环境配置**（仅供参考，非最低要求）：
 
@@ -189,8 +215,9 @@ reranker:
 |---------|---------|------|
 | 笔记本 / 云服务器无 GPU | Level 0 或 Level 1（云 API） | 零成本或低成本即可使用 |
 | 入门级独显（8GB 显存） | Level 1（本地 Ollama） | 可以用 4B 模型 + 小 embedding |
-| 中高端独显（12GB+ 显存） | Level 1-2 | 可以跑本地 LLM，Qdrant 可选 |
-| 服务器 GPU / 多卡 | Level 2（完全体） | 享受全部优化 |
+| 中高端独显（12-16GB 显存） | Level 1.5（折中方案） | 可以跑 14B FP8 或 27B INT4 |
+| 24GB 显存以上（RTX 4090 等） | Level 2（完全体） | 可以跑 27B FP8 + 全部优化 |
+| 服务器 GPU / 多卡 / 集群 | Level 2（完全体） | 享受全部优化，无瓶颈 |
 
 ---
 
