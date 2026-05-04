@@ -174,7 +174,7 @@ llm:
 | 双 RTX 2080 Ti Nvlink（**魔改**，显存 11G→22G 扩容） | 44GB 显存 | 备用推理 / ComfyUI |
 | RTX 3080 **魔改** 20G（原厂 10GB，显存替换） | 20GB 显存 | NAS 内置，ComfyUI 绘图 |
 | Qdrant | **Docker 独立部署** | 1 核 2 GB RAM | 向量记忆存储 |
-| Embedding/Reranker 容器 | 10.10.4.81, 共享 RTX PRO 6000 | 1024 维嵌入 + 交叉重排序 |
+| Embedding/Reranker | **单 LXC 容器双服务**，共享 RTX PRO 6000 | 1024 维嵌入 + 交叉重排序 |
 
 ```yaml
 # Level 2 完全体配置（本 fork 实验环境）
