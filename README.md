@@ -151,9 +151,9 @@ llm:
 
 | 替代模型 | 量化格式 | 权重显存 | 最低显存 | 推荐 GPU |
 |---------|---------|---------|---------|---------|
-| Qwen3.5-14B-FP8 | FP8 | ~14 GB | **16 GB** | RTX 4080 / 3080 20G |
+| Qwen3.5-14B-FP8 | FP8 | ~14 GB | **16 GB** | RTX 4080 / 3080 魔改 20G |
 | Qwen3.5-14B-INT4 | INT4 (AWQ/GPTQ) | ~7.5 GB | **12 GB** | RTX 3060 12GB / 4070 |
-| Qwen3.6-27B-INT4 | INT4 (AWQ/GPTQ) | ~14 GB | **16 GB** | RTX 4080 / 3080 20G |
+| Qwen3.6-27B-INT4 | INT4 (AWQ/GPTQ) | ~14 GB | **16 GB** | RTX 4080 / 3080 魔改 20G |
 
 降级配置示例：
 
@@ -171,8 +171,8 @@ llm:
 | 硬件 | 规格 | 用途 |
 |------|------|------|
 | RTX PRO 6000 Workstation | 96GB 显存 | vLLM Qwen3.6-27B-FP8 主推理 + Embedding + Reranker |
-| 双 RTX 2080 Ti Nvlink | 44GB 显存 | 备用推理 / ComfyUI |
-| RTX 3080 20G | 20GB 显存 | NAS 内置，ComfyUI 绘图 |
+| 双 RTX 2080 Ti Nvlink（**魔改**，2080 Ti 原厂无 Nvlink） | 44GB 显存 | 备用推理 / ComfyUI |
+| RTX 3080 **魔改** 20G（原厂 10GB，显存替换） | 20GB 显存 | NAS 内置，ComfyUI 绘图 |
 | Qdrant 专用容器 | 10.10.4.79, 4 核 8GB | 向量记忆存储 |
 | Embedding/Reranker 容器 | 10.10.4.81, 共享 RTX PRO 6000 | 1024 维嵌入 + 交叉重排序 |
 
