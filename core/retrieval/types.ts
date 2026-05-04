@@ -296,7 +296,7 @@ export interface RetrievalRepos {
         statusIn?: SkillStatus[];
         hardCap?: number;
       },
-    ) => Array<{
+    ) => Promise<Array<{
       id: string;
       score: number;
       meta?: {
@@ -305,7 +305,7 @@ export interface RetrievalRepos {
         eta: number;
         gain: number;
       };
-    }>;
+    }>>;
     /**
      * FTS5 trigram MATCH against `skills_fts`. Score is reciprocal rank
      * `1 / (idx+1)` so the ranker can fuse via the same RRF pass it
@@ -375,7 +375,7 @@ export interface RetrievalRepos {
         session_id: SessionId;
         tags_json?: string;
       };
-    }>;
+    }>>;
     /** FTS5 trigram MATCH against `traces_fts`. */
     searchByText?: (
       ftsMatch: string,
@@ -461,11 +461,11 @@ export interface RetrievalRepos {
       query: EmbeddingVector,
       k: number,
       opts?: { hardCap?: number },
-    ) => Array<{
+    ) => Promise<Array<{
       id: string;
       score: number;
       meta?: { title: string };
-    }>;
+    }>>;
     /** FTS5 trigram MATCH against `world_model_fts`. */
     searchByText?: (
       ftsMatch: string,

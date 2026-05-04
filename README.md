@@ -2,6 +2,22 @@
 
 > 用 Qdrant HNSW 向量库 + Qwen3-Reranker 替换 MemOS 默认 SQLite 暴力搜索的本地记忆系统。
 
+## 致谢
+
+本项目基于 [MemTensor/MemOS](https://github.com/MemTensor/MemOS)（MemOS Local Plugin）构建。  
+MemOS 由 MemTensor 团队开发，是一个面向 Agent 的本地记忆系统，提供分层记忆（L1/L2/L3）、策略归纳、技能结晶等能力。
+
+在此向 MemTensor 团队及所有 MemOS 贡献者致谢。🙏
+
+## 许可证
+
+本项目基于 [Apache License 2.0](LICENSE) 开源。
+
+- **原始项目**：MemTensor/MemOS — [Apache License 2.0](https://github.com/MemTensor/MemOS/blob/main/LICENSE)
+- **本衍生项目**：Apache License 2.0，完整许可证文本见 [LICENSE](LICENSE)
+
+Apache 2.0 允许 fork、修改、分发和商用，但要求保留原作者版权声明和许可证副本。
+
 ## 架构
 
 ```

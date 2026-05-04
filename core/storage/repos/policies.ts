@@ -2,6 +2,7 @@ import type { EmbeddingVector, PolicyId, PolicyRow } from "../../types.js";
 import type { PolicyListFilter, StorageDb } from "../types.js";
 import { buildInsert, buildUpdate } from "../tx.js";
 import { scanAndTopK, type VectorHit } from "../vector.js";
+import type { TracesRepoOptions } from "./traces.js";
 import {
   buildPageClauses,
   fromBlob,
@@ -40,7 +41,10 @@ export interface PolicySearchMeta {
   gain: number;
 }
 
-export function makePoliciesRepo(db: StorageDb, _opts?: { qdrant?: any; vectorBackend?: string }) {
+export function makePoliciesRepo(db: StorageDb, opts?: TracesRepoOptions) {
+  const qdrant = opts?.qdrant || null;
+  const vectorBackend = opts?.vectorBackend ?? "sqlite";
+
   const insert = db.prepare(buildInsert({ table: "policies", columns: COLUMNS }));
   const upsert = db.prepare(
     buildInsert({ table: "policies", columns: COLUMNS, onConflict: "replace" }),
@@ -107,11 +111,32 @@ export function makePoliciesRepo(db: StorageDb, _opts?: { qdrant?: any; vectorBa
       return db.prepare<typeof params, RawPolicyRow>(sql).all(params).map(mapRow);
     },
 
-    searchByVector(
+    async searchByVector(
       query: EmbeddingVector,
       k: number,
       opts: { statusIn?: PolicyRow["status"][]; hardCap?: number } = {},
-    ): Array<VectorHit<string, PolicySearchMeta>> {
+    ): Promise<Array<VectorHit<string, PolicySearchMeta>>> {
+      if (qdrant && vectorBackend === "qdrant") {
+        const filter = opts.statusIn && opts.statusIn.length > 0
+          ? { must: [{ keywords: { key: "status", match: { any: opts.statusIn } } }] }
+          : undefined;
+
+        const hits = await qdrant.search("policies", Array.from(query), {
+          k: opts.hardCap ?? k * 4,
+          filter,
+        });
+
+        return hits.map((h) => ({
+          id: h.id,
+          score: h.score,
+          meta: {
+            title: String(h.payload?.title ?? ""),
+            status: (h.payload?.status as PolicyRow["status"]) ?? "candidate",
+            support: Number(h.payload?.support) || 0,
+            gain: Number(h.payload?.gain) || 0,
+          },
+        }));
+      }
       const statusIn = opts.statusIn;
       const whereParts: string[] = ["vec IS NOT NULL"];
       const params: Record<string, unknown> = {};

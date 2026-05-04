@@ -7,6 +7,7 @@ import type {
 import type { PageOptions, StorageDb } from "../types.js";
 import { buildInsert, buildUpdate } from "../tx.js";
 import { scanAndTopK, type VectorHit } from "../vector.js";
+import type { TracesRepoOptions } from "./traces.js";
 import {
   buildPageClauses,
   fromBlob,
@@ -40,7 +41,10 @@ export interface WorldSearchMeta {
   title: string;
 }
 
-export function makeWorldModelRepo(db: StorageDb, _opts?: { qdrant?: any; vectorBackend?: string }) {
+export function makeWorldModelRepo(db: StorageDb, opts?: TracesRepoOptions) {
+  const qdrant = opts?.qdrant || null;
+  const vectorBackend = opts?.vectorBackend ?? "sqlite";
+
   const insert = db.prepare(buildInsert({ table: "world_model", columns: COLUMNS }));
   const upsert = db.prepare(
     buildInsert({ table: "world_model", columns: COLUMNS, onConflict: "replace" }),
@@ -141,11 +145,29 @@ export function makeWorldModelRepo(db: StorageDb, _opts?: { qdrant?: any; vector
       return db.prepare<unknown, RawWorldRow>(sql).all().map(mapRow);
     },
 
-    searchByVector(
+    async searchByVector(
       query: EmbeddingVector,
       k: number,
       opts: { hardCap?: number; minConfidence?: number } = {},
-    ): Array<VectorHit<string, WorldSearchMeta>> {
+    ): Promise<Array<VectorHit<string, WorldSearchMeta>>> {
+      if (qdrant && vectorBackend === "qdrant") {
+        const filter = opts.minConfidence !== undefined
+          ? { must: [{ range: { key: "confidence", gte: opts.minConfidence } }] }
+          : undefined;
+
+        const hits = await qdrant.search("world_model", Array.from(query), {
+          k: opts.hardCap ?? k * 4,
+          filter,
+        });
+
+        return hits.map((h) => ({
+          id: h.id,
+          score: h.score,
+          meta: {
+            title: String(h.payload?.title ?? ""),
+          },
+        }));
+      }
       const where = opts.minConfidence !== undefined
         ? `vec IS NOT NULL AND confidence >= ${Number(opts.minConfidence)}`
         : "vec IS NOT NULL";
