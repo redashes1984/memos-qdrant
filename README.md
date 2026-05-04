@@ -341,14 +341,14 @@ hermes gateway restart
 - [x] Config schema + defaults (storage + reranker)
 - [x] Qdrant HTTP client
 - [x] Reranker HTTP client
-- [x] Traces repo Qdrant searchByVector
-- [x] Repos index accept Qdrant options
+- [x] Traces repo Qdrant searchByVector + upsert 同步
+- [x] Policies repo Qdrant searchByVector + upsert 同步
+- [x] Skills repo Qdrant searchByVector + upsert 同步
+- [x] WorldModel repo Qdrant searchByVector + upsert 同步
+- [x] 检索层 await async searchByVector（三 tier 全部）
+- [x] Reranker 集成到 retrieve.ts
 - [x] 本地端点跳过 apiKey 校验（适配无认证 vLLM/Ollama）
 - [x] Embedding + LLM provider 修复，完整工作循环跑通
-- [ ] Policies/Skills/WorldModel Qdrant searchByVector
-- [ ] 写入端 upsert 同步 Qdrant
-- [ ] 检索层 await async searchByVector
-- [ ] Reranker 集成到 ranker.ts
 - [ ] 端到端测试
 - [ ] 发布到 npm
 

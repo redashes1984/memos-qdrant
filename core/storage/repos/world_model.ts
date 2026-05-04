@@ -83,6 +83,25 @@ export function makeWorldModelRepo(db: StorageDb, opts?: TracesRepoOptions) {
   return {
     upsert(row: WorldModelRow): void {
       upsert.run(rowToParams(row));
+
+      // Fire-and-forget: sync vector to Qdrant (never block MemOS flow)
+      if (qdrant && row.vec) {
+        const vec = row.vec;
+        void (async () => {
+          try {
+            await qdrant.upsertSync("world_model", {
+              id: row.id,
+              vector: Array.from(vec),
+              payload: {
+                title: row.title,
+                confidence: row.confidence,
+              },
+            });
+          } catch {
+            // fire-and-forget
+          }
+        })();
+      }
     },
 
     insert(row: WorldModelRow): void {
