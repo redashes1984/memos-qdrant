@@ -27,6 +27,23 @@ This is a proof that human-AI collaboration is not just about automation — it'
 
 ---
 
+### 📖 For AI Agents: Deployment Guide
+
+**If you are an AI agent tasked with deploying or understanding this project, read first:**
+
+👉 **[AGENT_DEPLOYMENT_GUIDE.md](AGENT_DEPLOYMENT_GUIDE.md)**
+
+This document is written specifically for AI agents. It covers:
+- ⚠️ **Critical pitfall**: Agent profile path resolution (HERMES_HOME) — the #1 silent deployment failure
+- Step-by-step deployment with verification commands
+- Configuration reference with CRITICAL settings marked
+- Troubleshooting guide for real issues encountered during development
+- Performance benchmarks and API reference
+
+**For human users with AI agents**: If you have an AI assistant helping you deploy this, ask it to read `AGENT_DEPLOYMENT_GUIDE.md` and follow the instructions. It was designed to be parsed and executed by agents — your assistant should be able to deploy this autonomously after reading it.
+
+---
+
 ## 致谢
 
 本项目基于 [MemTensor/MemOS](https://github.com/MemTensor/MemOS)（MemOS Local Plugin）构建。
