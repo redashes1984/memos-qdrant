@@ -3,6 +3,7 @@ import type { StorageDb, TraceListFilter } from "../types.js";
 import { buildInClause, buildInsert, buildUpdate } from "../tx.js";
 import { scanAndTopK, topKCosine, type VectorHit, type VectorRow } from "../vector.js";
 import { QdrantStore, type QdrantConfig } from "../qdrant.js";
+import { rootLogger } from "../../logger/index.js";
 import {
   buildPageClauses,
   fromBlob,
@@ -59,6 +60,7 @@ export interface TracesRepoOptions {
 export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
   const qdrant = opts?.qdrant || null;
   const vectorBackend = opts?.vectorBackend ?? "sqlite";
+  const log = rootLogger.child({ channel: "storage.repo.traces" });
 
   const insert = db.prepare(buildInsert({ table: "traces", columns: COLUMNS }));
   const upsert = db.prepare(
