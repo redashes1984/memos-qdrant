@@ -190,6 +190,55 @@ systemctl restart hermes-gateway
 
 ---
 
+## Design Principle: Lazy-Loading Bridge (Read This)
+
+**The bridge daemon is intentionally lazy-loaded — it is NOT started at Gateway boot.**
+
+### How it works
+
+The bridge is spawned on-demand when the first `AIAgent` instance calls `initialize()`:
+
+```
+Any trigger (user message / cron job / CLI)
+  → AIAgent.__init__()              # new agent instance per session
+    → _load_mem("memtensor")         # new MemTensorProvider
+    → _mp.is_available()             # checks Node.js exists
+    → initialize_all()
+      → start_tcp_daemon()           # spawns bridge if not alive (singleton lock)
+        → _get_shared_bridge()       # all instances share one TCP client
+```
+
+### Why lazy loading?
+
+1. **Bridge is heavy** — Node.js + tsx + SQLite + Embedding/LLM/Reranker/Qdrant connections. Startup takes seconds.
+2. **All sessions share one daemon** — `start_tcp_daemon()` has lock + TCP probe. Duplicate calls are no-ops.
+3. **Idle agents don't need memory** — No interaction = no retrieval = no need for bridge.
+
+### The "window of unavailability"
+
+After container restart, before any `AIAgent` is created, `memory_search` will silently fail. This window is **typically very short**:
+
+- **User sends a message** → AIAgent created → bridge starts → next turn works fine
+- **Cron job fires** → AIAgent created → bridge starts → memory works
+- **CLI command runs** → AIAgent created → bridge starts → memory works
+
+**This is expected behavior, not a bug.** The design defers bridge startup to when it is actually needed.
+
+### Verification
+
+```bash
+# Check if bridge daemon is listening
+ss -tlnp | grep 18911          # should show LISTEN
+
+# Check active connections from hermes agents
+ss -tnp | grep 18911           # shows PID 403 (hermes) connecting
+
+# Query bridge health directly
+echo '{"jsonrpc":"2.0","method":"core.health","params":{},"id":1}' | nc -w 3 127.0.0.1 18911
+```
+
+---
+
 ## 2. Deployment Prerequisites
 
 ### 2.1 Hardware Requirements (Three Tiers)

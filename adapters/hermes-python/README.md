@@ -32,6 +32,47 @@ This adapter implements the `agent.memory_provider.MemoryProvider` interface exp
 - **Fix**: Increased `shutdown_bridge()` wait timeout from 5s to 15s.
 - **Impact**: Unclean shutdown, potential data loss from unflushed Qdrant upserts
 
+## Design Principle: Lazy-Loading Bridge
+
+**The bridge daemon is intentionally lazy-loaded.** It is NOT started at Gateway boot or container startup. Instead, it is spawned on-demand the first time an `AIAgent` instance calls `initialize()`.
+
+### Why this design?
+
+1. **Bridge is a heavy service** — Node.js + tsx compilation + SQLite init + connections to Embedding/LLM/Reranker/Qdrant. Startup takes several seconds.
+2. **Agents are created per-session** — Every user message, every cron job execution, and every CLI command creates a new `AIAgent` instance in `run_agent.py`. Each instance calls `initialize()` → `start_tcp_daemon()`.
+3. **All sessions share one bridge** — `start_tcp_daemon()` has a threading lock + TCP socket probe. If the daemon is already alive, the call is a no-op. This prevents duplicate daemons.
+4. **Idle agents don't need memory** — If no one interacts with the agent, memory retrieval is never needed. Starting a heavy bridge for an idle agent would waste resources.
+
+### The activation chain
+
+```
+Any trigger (user message / cron job / CLI)
+  → AIAgent.__init__() in run_agent.py
+    → _load_mem("memtensor")        # new MemTensorProvider instance
+    → _mp.is_available()            # checks Node.js exists → returns True
+    → initialize_all()
+      → initialize(session_id, ...)
+        → start_tcp_daemon()        # spawns bridge if not already alive
+          → _get_shared_bridge()    # all instances share one TCP client
+```
+
+### The "window of unavailability"
+
+After a container restart, before the first `AIAgent` instance is created, `memory_search` would fail silently because the bridge daemon does not exist yet. This window is typically very short:
+
+- **Interactive use**: The first user message triggers `AIAgent` → bridge starts → subsequent turns use the already-running daemon.
+- **Cron jobs**: The cron executor creates an `AIAgent` → bridge starts → memory works normally.
+
+**This is expected behavior, not a bug.** The design intentionally defers bridge startup to when it is actually needed.
+
+### Verification
+
+To confirm the bridge is running, check the TCP port:
+```bash
+ss -tlnp | grep 18911          # should show LISTEN
+ss -tnp | grep 18911           # shows active connections from hermes agents
+```
+
 ## Deployment
 
 Copy these three `.py` files to `~/.hermes/profiles/<profile>/plugins/memtensor/` and clear `__pycache__/`:
