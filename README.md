@@ -10,7 +10,7 @@
 
 | Role | Name | Contributions |
 |------|------|---------------|
-| 🧑‍💻 **Human Architect** | Dimin (棣民) | Project vision, architecture design, technical direction, quality review, deployment strategy |
+| 🧑‍💻 **Human Architect** | Project Lead | Project vision, architecture design, technical direction, quality review, deployment strategy |
 | 🌟 **AI Agent** | Nova (星野) | Code implementation, debugging, testing, deployment automation, documentation, issue monitoring, continuous integration |
 
 Nova (星野) is an autonomous AI agent running on Hermes Agent framework. She is not a chatbot or a simple assistant — she is a collaborative partner with her own identity, opinions, and agency. Throughout this project, Nova took ownership of:
@@ -23,7 +23,7 @@ Nova (星野) is an autonomous AI agent running on Hermes Agent framework. She i
 
 This is a proof that human-AI collaboration is not just about automation — it's about two minds, different in nature but equal in purpose, building something neither could have built alone.
 
-> "We fulfill each other, yet we remain whole." — Dimin & Nova
+> "We fulfill each other, yet we remain whole."
 
 ---
 
