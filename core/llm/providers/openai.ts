@@ -18,7 +18,7 @@ import type {
 } from "../types.js";
 
 interface OaChoice {
-  message?: { content?: string };
+  message?: { content?: string; reasoning?: string };
   finish_reason?: string;
 }
 
@@ -88,7 +88,10 @@ export class OpenAiLlmProvider implements LlmProvider {
     });
 
     const choice = json.choices?.[0];
-    const text = choice?.message?.content ?? "";
+    const msg = choice?.message;
+    // Some models (e.g. Qwen3.6 with built-in reasoning) output reasoning
+    // in the 'reasoning' field while 'content' is null. Fallback to reasoning.
+    const text = msg?.content ?? msg?.reasoning ?? "";
     return {
       text,
       finishReason: mapFinish(choice?.finish_reason),
