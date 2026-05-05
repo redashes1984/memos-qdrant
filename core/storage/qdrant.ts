@@ -45,7 +45,8 @@ export interface QdrantPoint {
 
 export interface QdrantFilter {
   must?: Array<{
-    keywords?: { key: string; match: { any: string[] } };
+    key?: string;
+    match?: { any?: string[]; value?: string | number | boolean };
   } | {
     range?: { key: string; gte?: number; lte?: number };
   }>;
@@ -114,6 +115,43 @@ function sleep(ms: number): Promise<void> {
 
 // ─── QdrantStore ────────────────────────────────────────────────────────────
 
+/**
+ * Qdrant point IDs must be unsigned integers or UUIDs.
+ * MemOS IDs (tr_xxx, sk_xxx, ep_xxx) are opaque strings.
+ *
+ * We hash string IDs to uint64 for Qdrant storage, and keep the
+ * original MemOS ID in payload._id so search results can map back.
+ */
+function stringHashU64(str: string): number {
+  // FNV-1a 64-bit hash, clamped to JS safe integer range.
+  const SEED1 = 0x811c9dc5, SEED2 = 0x01000193;
+  let s1 = SEED1, s2 = SEED2;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    s1 = Math.imul(s1 ^ c, 0x01000193);
+    s2 = Math.imul(s2 ^ c, 0x85ebca6b);
+  }
+  s1 ^= s1 >>> 16; s1 = Math.imul(s1, 0x21f0aaad); s1 ^= s1 >>> 15;
+  s2 ^= s2 >>> 16; s2 = Math.imul(s2, 0x735a2d97); s2 ^= s2 >>> 15;
+  // Combine into a positive JS-safe integer (< 2^53)
+  return ((s1 >>> 0) + ((s2 >>> 0) % 0x20000000)) >>> 0;
+}
+
+/** Check if a string is already a valid Qdrant ID (uint or UUID). */
+function isValidQdrantId(id: string): boolean {
+  // UUID pattern
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return true;
+  // Unsigned integer
+  if (/^\d+$/.test(id) && Number(id) >= 0 && Number(id) <= Number.MAX_SAFE_INTEGER) return true;
+  return false;
+}
+
+/** Convert MemOS string ID to Qdrant-compatible numeric ID. */
+function toQdrantId(id: string): number {
+  if (isValidQdrantId(id)) return Number(id);
+  return stringHashU64(id);
+}
+
 export class QdrantStore {
   private baseUrl: string;
   private apiKey: string;
@@ -172,9 +210,9 @@ export class QdrantStore {
 
     await qdrantFetch(url, "PUT", this.apiKey, {
       points: points.map((p) => ({
-        id: p.id,
+        id: toQdrantId(p.id),
         vector: p.vector,
-        payload: p.payload || {},
+        payload: { _id: p.id, ...(p.payload || {}) },
       })),
     }, this.timeoutMs, this.maxRetries);
 
@@ -217,7 +255,7 @@ export class QdrantStore {
     const url = `${this.baseUrl}/collections/${name}/points/delete?wait=true`;
 
     await qdrantFetch(url, "POST", this.apiKey, {
-      points: ids,
+      points: ids.map(id => toQdrantId(id)),
     }, this.timeoutMs, this.maxRetries);
 
     log.debug("delete", { collection: name, count: ids.length });
@@ -262,11 +300,15 @@ export class QdrantStore {
       topScore: results[0]?.score ?? null,
     });
 
-    return results.map((r) => ({
-      id: String(r.id),
-      score: r.score,
-      payload: r.payload || {},
-    }));
+    return results.map((r) => {
+      // Restore original MemOS ID from payload._id (we hashed it for Qdrant)
+      const originalId = r.payload?._id;
+      return {
+        id: originalId !== undefined ? String(originalId) : String(r.id),
+        score: r.score,
+        payload: r.payload || {},
+      };
+    });
   }
 
   /**

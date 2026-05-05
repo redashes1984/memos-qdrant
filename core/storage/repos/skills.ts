@@ -154,7 +154,7 @@ export function makeSkillsRepo(db: StorageDb, opts?: TracesRepoOptions) {
     ): Promise<Array<VectorHit<string, SkillSearchMeta>>> {
       if (qdrant && vectorBackend === "qdrant") {
         const filter = opts.statusIn && opts.statusIn.length > 0
-          ? { must: [{ keywords: { key: "status", match: { any: opts.statusIn } } }] }
+          ? { must: [{ key: "status", match: { any: opts.statusIn } }] }
           : undefined;
 
         const hits = await qdrant.search("skills", Array.from(query), {

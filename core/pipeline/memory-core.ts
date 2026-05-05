@@ -148,6 +148,22 @@ export async function bootstrapMemoryCoreFull(
     try {
       qdrantStore = new QdrantStore(storageCfg.qdrant, (config.embedding as { dimensions?: number })?.dimensions ?? 1024);
       log.info("qdrant.initialized", { url: storageCfg.qdrant.url });
+
+      // Ensure all collections exist at startup so retrieval doesn't fail on empty state.
+      // Lazy-create in upsertSync is a fallback but races with first retrieval.
+      try {
+        const COLLECTIONS = [
+          "traces_summary", "traces_action", "traces_episodic",
+          "skills", "policies", "world_model",
+          "l2_experiences", "l3_abstractions",
+        ];
+        await Promise.all(COLLECTIONS.map((s) => qdrantStore!.ensureCollection(s)));
+        log.info("qdrant.collections.ready", { count: COLLECTIONS.length });
+      } catch (err) {
+        log.warn("qdrant.collections.init_failed", {
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
     } catch (err) {
       log.warn("qdrant.unavailable", {
         err: err instanceof Error ? err.message : String(err),

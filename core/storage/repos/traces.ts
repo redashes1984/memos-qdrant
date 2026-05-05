@@ -103,8 +103,9 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
                 vector: Array.from(row.vecSummary),
                 payload,
               });
-            } catch {
+            } catch (err) {
               // fire-and-forget — never block MemOS flow
+              log.error("qdrant.upsert_failed", { collection: "traces_summary", id: row.id, err: err instanceof Error ? err.message : String(err) });
             }
           }
           if (row.vecAction) {
@@ -114,8 +115,9 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
                 vector: Array.from(row.vecAction),
                 payload,
               });
-            } catch {
+            } catch (err) {
               // fire-and-forget — never block MemOS flow
+              log.error("qdrant.upsert_failed", { collection: "traces_action", id: row.id, err: err instanceof Error ? err.message : String(err) });
             }
           }
         })();
@@ -202,7 +204,7 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
 
         // Build Qdrant filter for tags
         const filter = opts.anyOfTags && opts.anyOfTags.length > 0
-          ? { must: [{ keywords: { key: "tags", match: { any: Array.from(opts.anyOfTags) } } }] }
+          ? { must: [{ key: "tags", match: { any: Array.from(opts.anyOfTags) } }] }
           : undefined;
 
         const hits = await qdrant.search(suffix, Array.from(query), {
