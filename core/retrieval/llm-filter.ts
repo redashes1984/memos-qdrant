@@ -126,9 +126,10 @@ ${list}`,
         op: `retrieval.${RETRIEVAL_FILTER_PROMPT.id}.v${RETRIEVAL_FILTER_PROMPT.version}`,
         temperature: 0,
         // Short output — indices + one bool. Kept tight so a misbehaving
-        // model can't blow budgets.
+        // model can't blow budgets. Allow extra retries because FP8 models
+        // (e.g. Qwen3.6-27B-FP8) are prone to prose leakage on short prompts.
         maxTokens: 160,
-        malformedRetries: 1,
+        malformedRetries: 2,
       },
     );
     const raw = (rsp.value?.selected ?? []) as unknown;
