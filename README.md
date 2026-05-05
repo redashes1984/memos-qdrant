@@ -397,6 +397,46 @@ hermes gateway restart
 
 - [x] 端到端测试 — 2026-05-05 在星野 Hermes 容器上完整跑通，四 repo 向量写入/检索/Reranker 二次排序全部通过
 
+### 检索架构改进：LLM filter 优化（重大改进）
+
+**问题**：官方 MemOS 默认开启 LLM filter（`algorithm.retrieval.llmFilterEnabled: true`），它的作用是把 Reranker 筛出的 5 条候选再送给大模型做一轮「哪些真正相关」的判断。但在 FP8 量化模型（如 Qwen3.6-27B-FP8）上，这个 filter 几乎总是失败——模型输出自然语言分析文本而非要求的 JSON 结构，导致每次检索多花 10+ 秒后降级到机械 cutoff。
+
+**根因分析**：
+- FP8 量化导致结构化输出（JSON）不稳定
+- LLM filter prompt 长达 130 行，留给输出的 maxTokens 仅 160
+- Reranker（Qwen3-Reranker-0.6B）本身就是专业的交叉注意力相关性评分模型，LLM filter 的额外过滤是冗余的
+
+**解决方案**：在 Level 2（完全体）配置中关闭 LLM filter。
+
+**配置**（`config.yaml`）：
+```yaml
+algorithm:
+  retrieval:
+    llmFilterEnabled: false  # Level 2 完全体配置推荐关闭
+```
+
+**性能对比**：
+
+| 指标 | LLM filter 开启 | LLM filter 关闭 |
+|------|----------------|----------------|
+| 检索耗时 | ~13 秒（3 次失败重试） | **~286ms** |
+| 返回结果数 | 1 条（降级） | **5 条（全量）** |
+| 日志噪音 | `llm.json malformed` × 3 | **无** |
+
+**架构改进说明**：这不是一个简单的配置开关，而是对官方检索管线的架构级改进。在 Level 2 完全体配置下，检索管线已经是三重保障：
+
+```
+Qdrant HNSW 初筛（毫秒级向量召回）
+  → Reranker 精排（交叉注意力相关性评分）
+  → [LLM filter — 已移除，由 Reranker 替代]
+```
+
+Reranker 是专业相关性评分模型，比通用 LLM 做过滤更精确、更快。LLM filter 在 Level 0（纯 SQLite）场景下有意义，但在有 Reranker 的 Level 2 配置下是性能瓶颈。
+
+**附带修复**：
+- `config/index.ts`：修复 `Value.Default()` 覆盖用户设 `false` 值的 bug（TypeBox schema 默认值会覆盖 YAML 中显式设置的 `false`）
+- `config/paths.ts`：添加 `HERMES_HOME` 环境变量自动检测，解决 profile 配置路径反复出错的问题
+
 ### 文档与社区
 
 - [x] 三级硬件配置文档（Level 0 / 1 / 2）
