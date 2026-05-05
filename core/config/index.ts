@@ -70,9 +70,11 @@ export function resolveConfig(raw: unknown, warnings?: string[]): ResolvedConfig
   const cleaned = pruneUnknown(raw, DEFAULT_CONFIG, "", warnings);
   const merged = deepMerge(DEFAULT_CONFIG as Record<string, unknown>, cleaned);
 
-  // Apply Typebox defaults + coerce types as much as possible.
-  const completed = Value.Default(ConfigSchema, merged) as ResolvedConfig;
-  const errors = Array.from(Value.Errors(ConfigSchema, completed));
+  // Validate against schema WITHOUT applying schema-level defaults.
+  // Value.Default() would overwrite user-provided values (e.g. `false`)
+  // with schema defaults (e.g. `Bool(true)` → `true`). We already merged
+  // over DEFAULT_CONFIG above, so missing fields are filled. Just validate.
+  const errors = Array.from(Value.Errors(ConfigSchema, merged));
   if (errors.length > 0) {
     const head = errors.slice(0, 5).map(formatErr).join("; ");
     throw new MemosError("config_invalid", `config failed schema validation: ${head}`, {
@@ -81,7 +83,7 @@ export function resolveConfig(raw: unknown, warnings?: string[]): ResolvedConfig
     });
   }
 
-  return Object.freeze(completed) as ResolvedConfig;
+  return Object.freeze(merged) as ResolvedConfig;
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
