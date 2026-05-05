@@ -169,9 +169,24 @@ algorithm:
 
 ### 1.4 Bug Fixes in This Fork
 
+#### Node.js Bridge Fixes
 1. **`config/index.ts`**: Fixed `Value.Default()` overwriting user-set `false` values with schema defaults
 2. **`config/paths.ts`**: Added `HERMES_HOME` env var auto-detection for profile-aware config resolution
 3. **`core/retrieval/llm-filter.ts`**: Increased `malformedRetries` from 1 to 2
+
+#### Hermes Python Adapter Fixes (2026-05-06)
+
+4. **`adapters/hermes-python/__init__.py`**: Fixed `turn.end` race condition — added `_session_active` flag to prevent deferred turn writes after `on_session_end()` closes the episode. Before this fix, `queue_prefetch` background threads would attempt `turn.end` on already-closed episodes, silently dropping turn data.
+
+5. **`adapters/hermes-python/daemon_manager.py`**: Fixed bridge shutdown timeout — increased `shutdown_bridge()` wait from 5s to 15s. Daemon-mode bridge needs time to close TCP connections, flush Qdrant data, and shut down the viewer HTTP server; 5s caused forced SIGKILL and potential data loss.
+
+6. **`adapters/hermes-python/` pycache management**: Fixed `set_memos_home` missing attribute error caused by stale `__pycache__/.pyc` files. Python adapter source now ships in the repo (`adapters/hermes-python/`) so deploy scripts can regenerate pycache cleanly.
+
+**Deployment note**: After deploying the Python adapter, always clear pycache:
+```bash
+rm -rf ~/.hermes/profiles/<profile>/plugins/memtensor/__pycache__/
+systemctl restart hermes-gateway
+```
 
 ---
 

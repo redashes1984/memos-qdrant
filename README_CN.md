@@ -319,6 +319,16 @@ MemOS 默认的向量检索方案：
 | `core/embedding/providers/openai.ts` | 本地端点跳过 apiKey 校验 |
 | `core/llm/providers/openai.ts` | 本地端点跳过 apiKey 校验 |
 
+### Hermes Python 适配器
+
+| 文件 | 改动 |
+|------|------|
+| `adapters/hermes-python/__init__.py` | 修复 `turn.end` 竞态条件 — 新增 `_session_active` 标志防止 episode 关闭后延迟写入 |
+| `adapters/hermes-python/daemon_manager.py` | 修复 bridge 关闭超时（5s → 15s）— 避免 clean shutdown 时强制 SIGKILL |
+| `adapters/hermes-python/README.md` | 部署指南与 pycache 清理说明 |
+
+> **部署注意**：部署 Python 适配器后，务必先清理 `__pycache__/` 再重启 Gateway。
+
 ## 部署方式
 
 ### 1. 安装 MemOS Local Plugin

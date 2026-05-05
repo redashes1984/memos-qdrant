@@ -319,6 +319,16 @@ This works fine at ~1,000 vectors but slows down at ~10,000. With Qdrant + Reran
 | `core/embedding/providers/openai.ts` | Skip apiKey validation for local endpoints |
 | `core/llm/providers/openai.ts` | Skip apiKey validation for local endpoints |
 
+### Hermes Python Adapter
+
+| File | Change |
+|------|--------|
+| `adapters/hermes-python/__init__.py` | Fixed `turn.end` race condition — added `_session_active` guard to prevent deferred writes after episode close |
+| `adapters/hermes-python/daemon_manager.py` | Fixed bridge shutdown timeout (5s → 15s) — prevents forced SIGKILL during clean shutdown |
+| `adapters/hermes-python/README.md` | Deployment guide with pycache cleanup instructions |
+
+> **Deployment note**: After deploying the Python adapter, always clear `__pycache__/` before restarting Gateway.
+
 ## Deployment
 
 ### 1. Install MemOS Local Plugin
