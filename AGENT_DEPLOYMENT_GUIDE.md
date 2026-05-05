@@ -20,6 +20,117 @@ UPSTREAM_ISSUE: https://github.com/MemTensor/MemOS/issues/1617
 
 ---
 
+## ⚠️ CRITICAL PITFALL — Agent Profile Path (Read Before Deploying)
+
+**This is the #1 bug that will silently break your deployment. Every AI agent that deploys this fork should read this section.**
+
+### The Problem
+
+When you start the bridge with `--agent=hermes`, `paths.ts` resolves the config path to:
+
+```
+~/.hermes/memos-plugin/config.yaml    ← GLOBAL path (wrong!)
+```
+
+But your actual config lives at:
+
+```
+~/.hermes/profiles/<your-profile>/memos-plugin/config.yaml    ← Profile path (correct)
+```
+
+**Result**: Bridge loads the GLOBAL path, finds no config, falls back to ALL defaults. Your Qdrant, Embedding, Reranker, and LLM settings are completely ignored. You'll see:
+
+- `embedder.model: Xenova/all-MiniLM-L6-v2` (default, not your Qwen3)
+- `embedder.dim: 384` (not 1024)
+- `llm.provider: local_only` (disabled!)
+- LLM filter warnings and 10+ second latency
+
+**This bug is nearly invisible** because the bridge starts successfully and the health check looks fine — it just shows the wrong model names.
+
+### How We Fixed It (Permanent Solution)
+
+Our fork's `core/config/paths.ts` now auto-detects the `HERMES_HOME` environment variable:
+
+```typescript
+// Resolution order (highest to lowest priority):
+// 1. MEMOS_HOME env var (manual override)
+// 2. MEMOS_CONFIG_FILE env var (manual override)
+// 3. HERMES_HOME env var (auto-detect profile ← ADDED)
+// 4. defaultHome argument
+// 5. Built-in default (~/.hermes/memos-plugin/)
+```
+
+**How it works**: When `agent='hermes'`, `resolveHome()` checks `HERMES_HOME`. If it exists (Hermes Gateway always sets it), the path becomes:
+
+```
+HERMES_HOME/memos-plugin/
+→ ~/.hermes/profiles/nova/memos-plugin/  ← Correct!
+```
+
+### What You MUST Do
+
+**If `HERMES_HOME` is set in your environment** (Hermes Gateway always sets it):
+
+Nothing. The fork auto-detects it. Just restart the bridge.
+
+**If `HERMES_HOME` is NOT set** (e.g., standalone deployment):
+
+Set one of these before starting the bridge:
+
+```bash
+# Option 1: Set HERMES_HOME (recommended)
+export HERMES_HOME=~/.hermes/profiles/<your-profile>
+
+# Option 2: Set MEMOS_HOME (explicit override)
+export MEMOS_HOME=~/.hermes/profiles/<your-profile>/memos-plugin
+```
+
+**If you're using upstream (not our fork)**:
+
+You MUST manually set `MEMOS_HOME` every time you start the bridge. There is no auto-detection.
+
+### How to Verify You're on the Right Path
+
+After starting the bridge, check the health endpoint:
+
+```bash
+echo '{"jsonrpc":"2.0","method":"core.health","params":{},"id":1}' | nc -w 3 127.0.0.1 18911
+```
+
+Look at `paths.home` in the response:
+
+| paths.home | Status |
+|-----------|--------|
+| `~/.hermes/profiles/<profile>/memos-plugin` | ✅ Correct |
+| `~/.hermes/memos-plugin` | ❌ WRONG — using global defaults |
+
+Then verify `embedder.model` shows `Qwen3-Embedding-0.6B` (not `Xenova/all-MiniLM-L6-v2`) and `llm.provider` shows `openai_compatible` (not `local_only`).
+
+### Why This Bug Is So Hard to Catch
+
+1. **No error on startup** — bridge starts fine, just with wrong config
+2. **Health check looks normal** — shows OK with default values
+3. **tsX cache hides fixes** — even after fixing code, `/tmp/tsx-*` cache serves old compiled output. Must clear: `rm -rf /tmp/tsx-* /tmp/17779-*`
+4. **Config values are silently ignored** — `llmFilterEnabled: false` in YAML becomes `true` at runtime (see `Value.Default()` bug below)
+
+### Related Bug: Value.Default() Overwrites `false` Values
+
+**Symptom**: You set `algorithm.retrieval.llmFilterEnabled: false` in YAML, but at runtime it's still `true`.
+
+**Root cause**: TypeBox `Value.Default(ConfigSchema, merged)` applies schema-level defaults to ALL fields. `Bool(true)` in schema overwrites your `false`.
+
+**Our fix**: `config/index.ts` removed `Value.Default()` call. `deepMerge(DEFAULT_CONFIG, cleaned)` already fills missing fields, so only `Value.Errors()` validation is needed.
+
+**Upstream users**: Patch `core/config/index.ts`:
+```typescript
+// REMOVE this line:
+const completed = Value.Default(ConfigSchema, merged) as ResolvedConfig;
+// Use instead:
+const merged = deepMerge(DEFAULT_CONFIG, cleaned);
+```
+
+---
+
 ## 1. What This Project Is
 
 ### 1.1 Origin
