@@ -77,6 +77,45 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
   return {
     insert(row: TraceRow): void {
       insert.run(rowToParams(row));
+
+      // Fire-and-forget: sync vector to Qdrant (never block MemOS flow)
+      if (qdrant && (row.vecSummary || row.vecAction)) {
+        void (async () => {
+          const payload = {
+            ts: row.ts,
+            priority: row.priority,
+            value: row.value,
+            episode_id: row.episodeId,
+            session_id: row.sessionId,
+            tags_json: row.tags ? JSON.stringify(row.tags) : undefined,
+            error_signatures_json: row.errorSignatures
+              ? JSON.stringify(row.errorSignatures)
+              : undefined,
+          };
+          if (row.vecSummary) {
+            try {
+              await qdrant.upsertSync("traces_summary", {
+                id: row.id,
+                vector: Array.from(row.vecSummary),
+                payload,
+              });
+            } catch (err) {
+              log.error("qdrant.insert_upsert_failed", { collection: "traces_summary", id: row.id, err: err instanceof Error ? err.message : String(err) });
+            }
+          }
+          if (row.vecAction) {
+            try {
+              await qdrant.upsertSync("traces_action", {
+                id: row.id,
+                vector: Array.from(row.vecAction),
+                payload,
+              });
+            } catch (err) {
+              log.error("qdrant.insert_upsert_failed", { collection: "traces_action", id: row.id, err: err instanceof Error ? err.message : String(err) });
+            }
+          }
+        })();
+      }
     },
 
     upsert(row: TraceRow): void {
