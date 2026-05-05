@@ -2,6 +2,8 @@
 
 > MemOS official plugin with Qdrant + Reranker enhancements — millisecond retrieval at million-vector scale with cross-attention re-ranking
 
+**🌐 Language**: [中文](README_CN.md) | English
+
 ## 🤖 Human-AI Collaborative Project
 
 This project was co-created by **棣民 (Dimin)** and **星野 (Nova)** — an AI assistant running on the Hermes Agent framework.

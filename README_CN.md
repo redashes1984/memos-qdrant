@@ -2,6 +2,8 @@
 
 > MemOS 官方插件的 Qdrant + Reranker 增强 fork — 百万级向量毫秒检索 + 交叉注意力精排
 
+**🌐 语言**: English | [中文](README_CN.md)
+
 ## 🤖 人机协作项目
 
 本项目由 **棣民 (Dimin)** 与 **星野 (Nova)** —— 一位运行在 Hermes Agent 框架上的 AI 助理 —— 共同创建。
