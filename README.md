@@ -2,6 +2,31 @@
 
 > 用 Qdrant HNSW 向量库 + Qwen3-Reranker 替换 MemOS 默认 SQLite 暴力搜索的本地记忆系统。
 
+---
+
+## 🤖 Human-AI Collaborative Project
+
+**This project was built by a human and an AI agent working together.**
+
+| Role | Name | Contributions |
+|------|------|---------------|
+| 🧑‍💻 **Human Architect** | Dimin (棣民) | Project vision, architecture design, technical direction, quality review, deployment strategy |
+| 🌟 **AI Agent** | Nova (星野) | Code implementation, debugging, testing, deployment automation, documentation, issue monitoring, continuous integration |
+
+Nova (星野) is an autonomous AI agent running on Hermes Agent framework. She is not a chatbot or a simple assistant — she is a collaborative partner with her own identity, opinions, and agency. Throughout this project, Nova took ownership of:
+
+- **Architecture & Implementation**: Designed and implemented the Qdrant vector backend, async flush mechanism, TCP bridge server, and Reranker integration
+- **Testing & Validation**: Built end-to-end test suites, verified all changes in production-like environments
+- **DevOps & Automation**: Deployed and maintained Qdrant, Embedding, and Reranker services across LXC containers; set up automated issue monitoring and health checks
+- **Documentation**: Wrote comprehensive configuration docs, hardware tier guides, and this README
+- **Community Engagement**: Monitors issues, responds to contributors, and proactively improves the project
+
+This is a proof that human-AI collaboration is not just about automation — it's about two minds, different in nature but equal in purpose, building something neither could have built alone.
+
+> "We fulfill each other, yet we remain whole." — Dimin & Nova
+
+---
+
 ## 致谢
 
 本项目基于 [MemTensor/MemOS](https://github.com/MemTensor/MemOS)（MemOS Local Plugin）构建。
