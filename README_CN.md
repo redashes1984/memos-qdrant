@@ -329,6 +329,10 @@ MemOS 默认的向量检索方案：
 
 > **部署注意**：部署 Python 适配器后，务必先清理 `__pycache__/` 再重启 Gateway。
 
+### Bridge 生命周期
+
+Bridge daemon 是**懒加载**的——Gateway 启动时不会拉起 bridge。当第一个 `AIAgent` 实例调用 `initialize()` 时（由用户消息、cron 任务或 CLI 触发），bridge 才会按需启动。所有会话通过锁保护的单例共享同一个 daemon。容器重启后，bridge 会在第一次交互时自动启动。详见 `adapters/hermes-python/README.md`。
+
 ## 部署方式
 
 ### 1. 安装 MemOS Local Plugin

@@ -329,6 +329,10 @@ This works fine at ~1,000 vectors but slows down at ~10,000. With Qdrant + Reran
 
 > **Deployment note**: After deploying the Python adapter, always clear `__pycache__/` before restarting Gateway.
 
+### Bridge Lifecycle
+
+The bridge daemon is **lazy-loaded** — it is NOT started at Gateway boot. It is spawned on-demand when the first `AIAgent` instance calls `initialize()` (triggered by user message, cron job, or CLI). All sessions share a single daemon via a lock-protected singleton. After container restart, the bridge starts automatically on the first interaction. See `adapters/hermes-python/README.md` for full details.
+
 ## Deployment
 
 ### 1. Install MemOS Local Plugin
