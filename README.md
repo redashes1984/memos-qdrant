@@ -363,18 +363,49 @@ hermes gateway restart
 
 ## 开发状态
 
+### 核心功能（已完成）
+
 - [x] Config schema + defaults (storage + reranker)
-- [x] Qdrant HTTP client
+- [x] Qdrant HTTP client (upsert / search / delete / collection)
 - [x] Reranker HTTP client
-- [x] Traces repo Qdrant searchByVector + upsert 同步
-- [x] Policies repo Qdrant searchByVector + upsert 同步
-- [x] Skills repo Qdrant searchByVector + upsert 同步
-- [x] WorldModel repo Qdrant searchByVector + upsert 同步
-- [x] 检索层 await async searchByVector（三 tier 全部）
+- [x] Traces repo — Qdrant searchByVector + fire-and-forget upsert 同步
+- [x] Policies repo — Qdrant searchByVector + upsert 同步
+- [x] Skills repo — Qdrant searchByVector + upsert 同步
+- [x] WorldModel repo — Qdrant searchByVector + upsert 同步
+- [x] 检索层 async/await searchByVector（全部 repo）
 - [x] Reranker 集成到 retrieve.ts
 - [x] 本地端点跳过 apiKey 校验（适配无认证 vLLM/Ollama）
 - [x] Embedding + LLM provider 修复，完整工作循环跑通
-- [ ] 端到端测试
+
+### 异步 Flush & Pipeline 集成（已完成）
+
+- [x] QdrantStore `_track()` — fire-and-forget upsert 追踪机制
+- [x] QdrantStore `flush()` —  await 所有待完成 upsert，确保数据不丢失
+- [x] PipelineDeps 增加 `qdrant` 字段
+- [x] memory-core.ts 将 Qdrant store 注入 bootstrap 流程
+- [x] orchestrator.ts drain 阶段调用 `qdrant.flush()`
+- [x] traces.ts insert/upsert 使用 `qdrant._track()` 纳入 flush 管理
+
+### TCP Bridge & 通信层（已完成）
+
+- [x] TCP server transport (bridge/tcp.ts) — line-delimited JSON-RPC over TCP
+- [x] bridge.cts 集成 TCP server（`--tcp` 参数，daemon 模式）
+- [x] bridge.cts pkgVersion 从 package.json 动态读取
+- [x] bridge.cts 优雅关闭（双信号防护 + 各 transport 有序停止）
+
+### 测试与验证
+
+- [x] 端到端测试 — 2026-05-05 在星野 Hermes 容器上完整跑通，四 repo 向量写入/检索/Reranker 二次排序全部通过
+
+### 文档与社区
+
+- [x] 三级硬件配置文档（Level 0 / 1 / 2）
+- [x] 人机协作项目声明 (README)
+- [x] 上游 Feature Request Issue (MemTensor/MemOS#1617)
+- [x] 每日自动 Issue 监控与回复（Cron job，每日 03:00）
+
+### 待完成
+
 - [ ] 发布到 npm
 
 ## 许可证
