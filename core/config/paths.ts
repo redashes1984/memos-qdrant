@@ -38,13 +38,22 @@ const DEFAULT_HOME_BY_AGENT: Record<string, string> = {
  *   1. `MEMOS_HOME` environment variable (covers everything).
  *   2. `MEMOS_CONFIG_FILE` environment variable (covers only the config file
  *      path; data/skills/logs still derive from the same parent dir).
- *   3. `defaultHome` argument.
- *   4. Built-in default for `agent` (`~/.openclaw/memos-plugin/` etc.).
+ *   3. Agent-specific env var (`HERMES_HOME` for hermes) — auto-detects
+ *      profile path so bridge.cts picks up the right config without manual
+ *      `MEMOS_HOME` overrides.
+ *   4. `defaultHome` argument.
+ *   5. Built-in default for `agent` (`~/.openclaw/memos-plugin/` etc.).
  */
 export function resolveHome(agent: AgentKind, defaultHome?: string): ResolvedHome {
   const env = process.env;
   const envHome = env["MEMOS_HOME"];
   const envConfig = env["MEMOS_CONFIG_FILE"];
+
+  // Auto-detect profile home from agent-specific env var (e.g. HERMES_HOME
+  // set by Hermes Gateway to the profile directory). Only applies when
+  // MEMOS_HOME / MEMOS_CONFIG_FILE are NOT set, so explicit overrides win.
+  const agentEnvVar = `HERMES_HOME`;
+  const agentProfileHome = agent === "hermes" ? env[agentEnvVar] : undefined;
 
   let root: string;
   let configFile: string;
@@ -55,6 +64,11 @@ export function resolveHome(agent: AgentKind, defaultHome?: string): ResolvedHom
   } else if (envConfig && envConfig.trim()) {
     configFile = pathResolve(expandHome(envConfig));
     root = pathResolve(configFile, "..");
+  } else if (agentProfileHome && agentProfileHome.trim()) {
+    // HERMES_HOME points to the profile dir (e.g. ~/.hermes/profiles/nova),
+    // so memos-plugin data lives inside it as a subdirectory.
+    root = pathResolve(join(expandHome(agentProfileHome), "memos-plugin"));
+    configFile = join(root, "config.yaml");
   } else if (defaultHome && defaultHome.trim()) {
     root = pathResolve(expandHome(defaultHome));
     configFile = join(root, "config.yaml");
