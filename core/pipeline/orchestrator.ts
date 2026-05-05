@@ -811,6 +811,11 @@ export function createPipeline(deps: PipelineDeps): PipelineHandle {
     for (let i = 0; i < 4; i++) await nextTick();
     await subs.skills.flush();
     await subs.feedback.flush();
+    // Await any in-flight fire-and-forget Qdrant upserts so they're
+    // not dropped when the bridge process exits.
+    if (deps.qdrant) {
+      try { await deps.qdrant.flush(); } catch {}
+    }
   }
 
   async function shutdown(reason: string = "shutdown"): Promise<void> {

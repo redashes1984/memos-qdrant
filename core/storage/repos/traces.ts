@@ -81,8 +81,9 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
       insert.run(rowToParams(row));
 
       // Fire-and-forget: sync vector to Qdrant (never block MemOS flow)
+      // Use qdrant._track() so pipeline flush() can await pending upserts.
       if (qdrant && (row.vecSummary || row.vecAction)) {
-        void (async () => {
+        const p = (async () => {
           const payload = {
             ts: row.ts,
             priority: row.priority,
@@ -117,6 +118,7 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
             }
           }
         })();
+        qdrant._track(p);
       }
     },
 
@@ -124,8 +126,9 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
       upsert.run(rowToParams(row));
 
       // Fire-and-forget: sync vector to Qdrant (never block MemOS flow)
+      // Use qdrant._track() so pipeline flush() can await pending upserts.
       if (qdrant && (row.vecSummary || row.vecAction)) {
-        void (async () => {
+        const p = (async () => {
           const payload = {
             ts: row.ts,
             priority: row.priority,
@@ -162,6 +165,7 @@ export function makeTracesRepo(db: StorageDb, opts?: TracesRepoOptions) {
             }
           }
         })();
+        qdrant._track(p);
       }
     },
 

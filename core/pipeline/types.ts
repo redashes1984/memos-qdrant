@@ -134,6 +134,8 @@ export interface PipelineDeps {
   reflectLlm: LlmClient | null;
   embedder: Embedder | null;
   log: Logger;
+  /** Qdrant store for flush-time sync. Null when using SQLite-only. */
+  qdrant?: import("../storage/qdrant.js").QdrantStore | null;
   /** Injection hook so tests can provide a fake clock. */
   now?: () => number;
 }

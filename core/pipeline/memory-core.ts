@@ -240,6 +240,7 @@ export async function bootstrapMemoryCoreFull(
     llm,
     reflectLlm: reflectLlm ?? llm,
     embedder,
+    qdrant: qdrantStore,
     log,
     now: options.now,
   };

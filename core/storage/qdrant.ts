@@ -159,6 +159,8 @@ export class QdrantStore {
   private timeoutMs: number;
   private maxRetries: number;
   private dims: number;
+  /** Track in-flight fire-and-forget upserts so flush() can await them. */
+  private _pendingUpserts = new Set<Promise<void>>();
 
   constructor(config: QdrantConfig, dims: number) {
     this.baseUrl = config.url.replace(/\/+$/, "");
@@ -167,6 +169,23 @@ export class QdrantStore {
     this.timeoutMs = config.timeoutMs;
     this.maxRetries = config.maxRetries;
     this.dims = dims;
+  }
+
+  /** Await all in-flight fire-and-forget upserts. */
+  async flush(): Promise<void> {
+    const settled = await Promise.allSettled(this._pendingUpserts);
+    this._pendingUpserts.clear();
+    const failures = settled.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+    if (failures.length) {
+      log.warn("flush.qdrant_failures", { count: failures.length });
+    }
+  }
+
+  /** Schedule a fire-and-forget async upsert and track it for flush(). */
+  _track<T>(promise: Promise<T>): void {
+    const key = promise;
+    this._pendingUpserts.add(key as Promise<void>);
+    void promise.finally(() => this._pendingUpserts.delete(key as Promise<void>));
   }
 
   /** Full collection name for a given suffix. */
