@@ -52,16 +52,16 @@ This fork adds **Qdrant Vector Search** and **Reranker Re-ranking**, supporting 
 ## Architecture
 
 ```
-┌───────────────┐     ┌───────────────────────────────────────┐
-│  MemOS Agent  │     │  Vector Retrieval Pipeline            │
-│ (Local Plugin)│     │                                       │
-│               │     │ Embedding → Qdrant → Reranker         │
+┌───────────────┐      ┌───────────────────────────────────────┐
+│  MemOS Agent  │      │      Vector Retrieval Pipeline        │
+│ (Local Plugin)│      │                                       │
+│               │      │    Embedding → Qdrant → Reranker      │
 │  capture      │────▶│ ┌──────────┐ ┌────────┐ ┌──────────┐  │
 │  retrieval    │◀────│ │  Qwen3-  │ │ Qdrant │ │  Qwen3-  │  │
-│  reward       │     │ │ Embedding│ │ HNSW   │ │ Reranker │  │
-│  l2/l3        │     │ │  :8003   │ │ :6333  │ │  :8004   │  │
-│  skill        │     │ └──────────┘ └────────┘ └──────────┘  │
-└───────────────┘     └───────────────────────────────────────┘
+│  reward       │      │ │ Embedding│ │ HNSW   │ │ Reranker │  │
+│  l2/l3        │      │ │  :8003   │ │ :6333  │ │  :8004   │  │
+│  skill        │      │ └──────────┘ └────────┘ └──────────┘  │
+└───────────────┘      └───────────────────────────────────────┘
 ```
 
 ## Why This Exists
