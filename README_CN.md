@@ -1,6 +1,6 @@
 # MemOS + Qdrant + Reranker
 
-[English](README.md) | 中文
+**Languages**: [English](README.md) | 中文
 
 > 用 Qdrant HNSW 向量库 + Qwen3-Reranker 替换 MemOS 默认 SQLite 暴力搜索的本地记忆系统。
 

@@ -1,5 +1,7 @@
 # MemOS + Qdrant + Reranker
 
+**Languages**: English | [中文](README_CN.md)
+
 > Replace MemOS's default SQLite brute-force vector search with a local memory system powered by Qdrant HNSW + Qwen3-Reranker.
 
 ---
