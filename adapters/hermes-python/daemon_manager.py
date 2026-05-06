@@ -100,8 +100,12 @@ def _pid_alive(pid: int) -> bool:
 
 
 def _bridge_script() -> Path:
-    # Our deployment puts bridge.cts in /root/projects/memos-qdrant/memos-plugin/
-    # PR #1606 uses relative path that resolves incorrectly in Hermes plugin context.
+    # Use pre-compiled dist/bridge.cjs via node to avoid tsx caching issues.
+    # The source is bridge.cts but tsc compiles it to dist/bridge.cjs.
+    dist_path = Path("/root/projects/memos-qdrant/memos-plugin/dist/bridge.cjs")
+    if dist_path.exists():
+      return dist_path
+    # Fallback to source if dist is missing (dev mode)
     return Path("/root/projects/memos-qdrant/memos-plugin/bridge.cts")
 
 
@@ -196,9 +200,13 @@ def start_tcp_daemon(memos_home: str | None = None) -> None:
             env["MEMOS_HOME"] = memos_home
 
         logger.info("MemOS: starting TCP daemon bridge on port %d from %s", TCP_PORT, script)
+
+        # Use 'node' for pre-compiled .cjs, 'tsx' for source .cts
+        launcher = "tsx" if str(script).endswith(".cts") else "node"
+
         _ACTIVE_BRIDGE_PROC = subprocess.Popen(
             [
-                "tsx", str(script),
+                launcher, str(script),
                 "--daemon",
                 f"--tcp={TCP_PORT}",
                 "--agent=hermes",
