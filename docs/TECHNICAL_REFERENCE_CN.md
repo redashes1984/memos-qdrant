@@ -361,6 +361,65 @@ Reranker 是专业相关性评分模型，比通用 LLM 做过滤更精确、更
 
 ---
 
+## 已知问题与排查记录
+
+### vLLM + Qwen3.6 reasoning model：System message 位置导致的 400 错误
+
+**发现时间**：2026-05-06
+**状态**：已定位根因，修复代码已写入但 tsx 缓存未生效
+**影响范围**：MemOS 内部后台 LLM 调用（reflection 评分、session relation 分类等），有 fallback 到 rule-based，不影响主功能
+
+**症状**：
+```
+llm.http.non_ok status=400 endpoint=http://10.10.4.8:8000/v1/chat/completions
+```
+
+**排查过程**：
+1. 初判为 `stream_options` 问题（MemOS 请求体携带 `stream_options` 但 `stream: false`）
+2. 抓包验证后排除：实际请求体中 **不含** `stream_options`
+3. 在 `fetcher.ts` 增加响应体日志，捕获到 vLLM 真实返回的错误信息：
+   ```
+   "System message must be at the beginning. Current: user/assistant/tool/..."
+   ```
+
+**根因**：
+Qwen3.6 reasoning model + vLLM 严格要求 **system message 必须是 messages 数组的第一条**。MemOS 内部某些 LLM 调用（reflection 评分、session relation 分类）构建的 messages 数组中 system message 排在后面，导致 vLLM 直接返回 400 拒绝。
+
+**修复方案**（已写入源码，待 tsx 缓存清理后生效）：
+
+```typescript
+// core/llm/client.ts — normalizeMessages()
+function normalizeMessages(input: LLMInput[]): LLMInput[] {
+  const systems = input.filter((m) => m.role === "system");
+  const rest = input.filter((m) => m.role !== "system");
+  if (systems.length > 0 && rest.length > 0 && rest[0]?.role !== "system") {
+    return [...systems, ...rest];
+  }
+  return input;
+}
+```
+
+**阻塞原因**：
+`tsx` 启动器使用内部编译缓存，修改 `.ts` 源码后缓存不自动刷新。已尝试：
+- 修改 `dist/*.js`（无效，tsx 不从 dist 加载）
+- 清理 `node_modules/.cache`（缓存顽固）
+- 方案：改用 `node --import tsx` 或直接 `node dist/bridge.js` 启动可绕过
+
+**降级策略**：
+MemOS 内置 fallback 机制，400 后自动退化为 rule-based 处理：
+- ✅ 记忆检索正常（Tier 1/2/3 全部工作）
+- ✅ `memory_search` / `memory_timeline` 正常返回
+- ⚠️ reflection 评分退化为默认值（影响记忆质量评分精度）
+- ⚠️ session relation 分类使用规则匹配
+
+**相关文件**：
+- `core/llm/client.ts` — normalizeMessages 修复点
+- `core/llm/fetcher.ts` — 调试日志（requestKeys + responseBody）
+- `bridge.cts` — 启动入口
+
+---
+
 ## 待完成
 
 - [ ] 发布到 npm
+- [ ] 修复 vLLM system message 位置 400 问题（tsx 缓存清理或改用 node 直接启动）

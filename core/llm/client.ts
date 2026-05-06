@@ -83,6 +83,14 @@ export function createLlmClientWithProvider(
     if (!Array.isArray(input) || input.length === 0) {
       throw new MemosError(ERROR_CODES.INVALID_ARGUMENT, "LLM messages array is empty");
     }
+    // Some LLM backends (vLLM with Qwen reasoning models) require system
+    // messages to appear before any user/assistant messages. Reorder to
+    // ensure all system messages come first, preserving relative order.
+    const systems = input.filter((m) => m.role === "system");
+    const rest = input.filter((m) => m.role !== "system");
+    if (systems.length > 0 && rest.length > 0 && rest[0]?.role !== "system") {
+      return [...systems, ...rest];
+    }
     return input;
   }
 

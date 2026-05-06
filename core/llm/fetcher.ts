@@ -41,6 +41,14 @@ export async function httpPostJson<TResp>(opts: HttpPostOpts<unknown>): Promise<
     const start = Date.now();
     try {
       const signal = mergeSignals(opts.signal, AbortSignal.timeout(opts.timeoutMs));
+      // Defensive: remove stream_options when stream is not enabled.
+      // Some LLM backends (vLLM, OpenRouter) reject stream_options
+      // on non-streaming requests with HTTP 400.
+      const safeBody = opts.body as Record<string, unknown>;
+      const body = { ...safeBody };
+      if (!body.stream && "stream_options" in body) {
+        delete body.stream_options;
+      }
       const resp = await fetch(opts.url, {
         method: "POST",
         headers: {
@@ -48,7 +56,7 @@ export async function httpPostJson<TResp>(opts: HttpPostOpts<unknown>): Promise<
           Accept: "application/json",
           ...opts.headers,
         },
-        body: JSON.stringify(opts.body),
+        body: JSON.stringify(body),
         signal,
       });
       const ms = Date.now() - start;
@@ -61,6 +69,8 @@ export async function httpPostJson<TResp>(opts: HttpPostOpts<unknown>): Promise<
           attempt,
           transient,
           durationMs: ms,
+          requestKeys: Object.keys(body),
+          responseBody: text?.slice(0, 300),
         });
         if (transient && attempt <= opts.maxRetries) {
           opts.onRetry?.(attempt);
